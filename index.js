@@ -33,7 +33,5 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
-});
+// Export the app for Vercel serverless deployment
+module.exports = app;
