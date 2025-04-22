@@ -14,10 +14,10 @@ app.use(express.urlencoded({ extended: false })); // ✅ Needed to parse Twilio 
 // Respond no favicon to prevent 404s
 
 app.get('/favicon.ico', (req, res) => res.sendStatus(204));
-app.get('/favicon.*', (req, res) => res.sendStatus(204));
+
 // Serve static files (including favicon)
-//const path = require('path');
-//app.use(express.static(path.join(__dirname, 'public')));
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.use('/webhook', webhookRoutes);
@@ -33,5 +33,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something broke!');
 });
 
-// Export the app for Vercel serverless deployment
-module.exports = app;
+// Start server
+app.listen(port, () => {
+  console.log(`Server listening at http://localhost:${port}`);
+});
