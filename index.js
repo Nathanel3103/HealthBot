@@ -11,6 +11,11 @@ connectToDatabase();
 // ✅ Middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: false })); // ✅ Needed to parse Twilio webhook payloads
+// Respond no favicon to prevent 404s
+app.get('/favicon.ico', (req, res) => res.sendStatus(204));
+// Serve static files (including favicon)
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.use('/webhook', webhookRoutes);
