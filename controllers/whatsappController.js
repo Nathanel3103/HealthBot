@@ -156,8 +156,8 @@ exports.handleIncoming = async (req, res) => {
         break;
     }
 
-    // Persist session changes
-    await upsertSession(phone, session);
+    // FIXED: Removed redundant session update that was overwriting session states
+    // The session is already updated in each case above
     res.type('text/xml').send(twiml.toString());
 
   } catch (error) {
