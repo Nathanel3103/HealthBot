@@ -104,12 +104,23 @@ exports.handleIncoming = async (req, res) => {
           twiml.message("❌ Invalid slot selection. Please choose from the list:");
           break;
         }
+
+        
+
         
         await upsertSession(phone, {
-          step: "get_name",
+          step: "get_reason",
           selectedSlot: session.availableSlots[slotIndex]
         });
         
+        twiml.message("📝 Please enter the reason for your appointment:");
+        break;
+
+      case "get_reason":
+        await upsertSession(phone, {
+          step: "get_name",
+          reason: rawMsg
+        });
         twiml.message("👤 Please enter your full name for the booking:");
         break;
 
@@ -124,6 +135,7 @@ exports.handleIncoming = async (req, res) => {
           Date: ${session.date}
           Slot: ${session.selectedSlot}
           Name: ${rawMsg}
+          Reason: ${session.reason}
           
           Reply:\n1. Confirm\n2. Cancel`);
         break;
@@ -133,6 +145,7 @@ exports.handleIncoming = async (req, res) => {
           await createBooking({
             phoneNumber: phone,
             patientName: session.patientName,
+            reason: session.reason,
             doctor: {
               _id: session.doctorId,
               name: session.doctorName,
@@ -144,7 +157,7 @@ exports.handleIncoming = async (req, res) => {
           
           await clearSession(phone);
           twiml.message(`✅ Booking confirmed!\n
-            📍 Clinic Address: 123 Medical Street
+            📍 Clinic Address: 123 Ganges Street
             📅 Date: ${session.date}
             ⏰ Slot: ${session.selectedSlot}
             👨⚕️ Doctor: ${session.doctorName}
@@ -161,7 +174,7 @@ exports.handleIncoming = async (req, res) => {
         break;
     }
 
-    // FIXED: Removed redundant session update that was overwriting session states
+    
     // The session is already updated in each case above
     res.type('text/xml').send(twiml.toString());
 

@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema({
   patientName: String,
+  reason: String,
   phoneNumber: String,
   service: String,
   doctor: {
