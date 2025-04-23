@@ -109,6 +109,7 @@ exports.handleIncoming = async (req, res) => {
 
         
         await upsertSession(phone, {
+          phoneNumber: phone,
           step: "get_reason",
           selectedSlot: session.availableSlots[slotIndex]
         });
@@ -118,6 +119,7 @@ exports.handleIncoming = async (req, res) => {
 
       case "get_reason":
         await upsertSession(phone, {
+          phoneNumber: phone,
           step: "get_name",
           reason: rawMsg
         });
@@ -126,6 +128,7 @@ exports.handleIncoming = async (req, res) => {
 
       case "get_name":
         await upsertSession(phone, {
+          phoneNumber: phone,
           step: "confirm_booking",
           patientName: rawMsg
         });
