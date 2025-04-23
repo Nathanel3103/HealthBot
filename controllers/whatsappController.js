@@ -23,7 +23,7 @@ exports.handleIncoming = async (req, res) => {
     // Handle session initialization
     if (["hi", "hello", "hey", "start"].includes(msg)) {
       await upsertSession(phone, { step: "select_service" });
-      twiml.message(`🏥 Welcome to City Clinic! Please choose:\n1. Book Appointment\n2. Help`);
+      twiml.message(`🏥 Welcome to Health Care Booking Clinic! Please choose:\n1. Book Appointment\n2. Help`);
       return res.type('text/xml').send(twiml.toString());
     }
 
@@ -89,6 +89,7 @@ exports.handleIncoming = async (req, res) => {
           step: "select_slot",
           doctorId: selectedDoctor.id,
           doctorName: selectedDoctor.name,
+          doctorSpecialization: selectedDoctor.specialization, // Store specialization
           availableSlots: availableSlots
         });
         
@@ -132,7 +133,11 @@ exports.handleIncoming = async (req, res) => {
           await createBooking({
             phoneNumber: phone,
             patientName: session.patientName,
-            doctor: session.doctorId,
+            doctor: {
+              _id: session.doctorId,
+              name: session.doctorName,
+              specialization: session.doctorSpecialization
+            },
             date: session.date,
             time: session.selectedSlot
           });
