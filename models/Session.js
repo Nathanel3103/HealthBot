@@ -16,6 +16,7 @@ const sessionSchema = new mongoose.Schema({
       'select_date',
       'select_doctor',
       'select_slot',
+      'get_reason',
       'get_name',
       'confirm_booking'
     ],
@@ -26,6 +27,7 @@ const sessionSchema = new mongoose.Schema({
   doctorName: String,
   availableSlots: [String],
   selectedSlot: String,
+  reason: String,
   patientName: String,
   service: String,
   availableDoctors: [{
