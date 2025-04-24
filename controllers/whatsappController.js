@@ -109,7 +109,7 @@ exports.handleIncoming = async (req, res) => {
 
         
         await upsertSession(phone, {
-          phoneNumber: phone,
+          
           step: "get_reason",
           selectedSlot: session.availableSlots[slotIndex]
         });
@@ -119,7 +119,6 @@ exports.handleIncoming = async (req, res) => {
 
       case "get_reason":
         await upsertSession(phone, {
-          phoneNumber: phone,
           step: "get_name",
           reason: rawMsg
         });
@@ -128,7 +127,6 @@ exports.handleIncoming = async (req, res) => {
 
       case "get_name":
         await upsertSession(phone, {
-          phoneNumber: phone,
           step: "confirm_booking",
           patientName: rawMsg
         });
@@ -160,10 +158,11 @@ exports.handleIncoming = async (req, res) => {
           
           await clearSession(phone);
           twiml.message(`✅ Booking confirmed!\n
-            📍 Clinic Address: 123 Ganges Street
+            📍 Clinic Address: 123 Ganges Street Belvedere
             📅 Date: ${session.date}
             ⏰ Slot: ${session.selectedSlot}
             👨⚕️ Doctor: ${session.doctorName}
+            📝 Reason: ${session.reason || 'General Consultation'}
             
             You'll receive a reminder 1 hour before your appointment.`);
         } else {

@@ -18,6 +18,15 @@ async function createBooking(bookingData) {
   if (!isValidDate(bookingData.date)) {
     throw new Error('Invalid date format (YYYY-MM-DD required)');
   }
+//validate reason
+  if (bookingData.reason) {
+    if (bookingData.reason.length > 500) {
+      throw new Error('Reason must be less than 500 characters');
+    }
+    if (bookingData.reason.length < 5) {
+      throw new Error('Reason must be at least 5 characters');
+    }
+  }
 
   // Check slot availability
   const isAlreadyBooked = await Booking.exists({
@@ -31,7 +40,11 @@ async function createBooking(bookingData) {
   }
 
   // Create and save booking
-  const booking = new Booking(bookingData);
+  const booking = new Booking({
+    ...bookingData,
+    reason: bookingData.reason || "Not specified" // Default value
+  });
+  
   return await booking.save();
 }
 

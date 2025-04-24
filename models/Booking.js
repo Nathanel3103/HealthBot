@@ -4,7 +4,12 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema({
   patientName: String,
-  reason: String,
+  reason: {
+    type: String,
+    required: false,
+    default: "General Consultation",
+    maxlength: 500
+  },
   phoneNumber: String,
   service: String,
   doctor: {
