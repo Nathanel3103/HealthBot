@@ -19,6 +19,8 @@ const bookingSchema = new mongoose.Schema({
   },
   date: String, // formatted as "YYYY-MM-DD"
   time: String, // formatted as "HH:mm"
+  source: { type: String, enum: ["Web", "WhatsApp"], required: true, default: "WhatsApp" },  // <-- easy identification in databse
+
   createdAt: {
     type: Date,
     default: Date.now,
