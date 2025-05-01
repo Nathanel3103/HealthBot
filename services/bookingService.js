@@ -1,7 +1,8 @@
 const Booking = require("../models/Booking");
+const mongoose = require('mongoose'); // mongoose is required for transactions
 const { isValidPhoneNumber, isValidDate } = require("../utils/validators");
 
-async function createBooking(bookingData) {
+async function createBooking(bookingData, { useTransaction = false } = {}) {
   // Validate required fields
   const requiredFields = ['patientName', 'phoneNumber', 'doctor', 'date', 'time'];
   const missingFields = requiredFields.filter(field => !bookingData[field]);
@@ -28,24 +29,36 @@ async function createBooking(bookingData) {
     }
   }
 
-  // Check slot availability
-  const isAlreadyBooked = await Booking.exists({
-    doctor: bookingData.doctor,
-    date: bookingData.date,
-    time: bookingData.time
-  });
+  const session = useTransaction ? await mongoose.startSession() : null;
+  if (session) session.startTransaction();
 
-  if (isAlreadyBooked) {
-    throw new Error('This time slot is already booked');
+  try {
+    // Create and save booking
+    const booking = new Booking({
+      ...bookingData,
+      reason: bookingData.reason || "Not specified" // Default value
+    });
+    
+    const options = session ? { session } : {};
+    const savedBooking = await booking.save(options);
+    
+    if (session) {
+      await session.commitTransaction();
+      session.endSession();
+    }
+    
+    return savedBooking;
+  } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+      session.endSession();
+    }
+    
+    if (error.code === 11000) { // Duplicate key error
+      throw new Error('This time slot is already booked');
+    }
+    throw error; // Re-throw other errors
   }
-
-  // Create and save booking
-  const booking = new Booking({
-    ...bookingData,
-    reason: bookingData.reason || "Not specified" // Default value
-  });
-  
-  return await booking.save();
 }
 
 async function getBookingsByPhone(phoneNumber) {

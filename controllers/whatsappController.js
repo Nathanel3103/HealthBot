@@ -154,7 +154,7 @@ exports.handleIncoming = async (req, res) => {
             },
             date: session.date,
             time: session.selectedSlot
-          });
+          }, { useTransaction: true }); // Enable transaction for critical operations
           
           await clearSession(phone);
           twiml.message(`✅ Booking confirmed!\n
