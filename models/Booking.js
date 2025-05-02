@@ -27,7 +27,8 @@ const bookingSchema = new mongoose.Schema({
   },
 });
 
-// Add unique index to prevent duplicate bookings
+
+
 bookingSchema.index(
   { date: 1, time: 1, service: 1 },
   { unique: true, name: 'booking_slot_unique' }

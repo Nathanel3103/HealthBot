@@ -1,4 +1,5 @@
 const Booking = require("../models/Booking");
+const Doctor = require("../models/Doctor");
 const mongoose = require('mongoose'); // mongoose is required for transactions
 const { isValidPhoneNumber, isValidDate } = require("../utils/validators");
 
@@ -41,6 +42,13 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
     
     const options = session ? { session } : {};
     const savedBooking = await booking.save(options);
+
+    // Atomically pull the booked slot from the doctor's availability
+    await Doctor.findByIdAndUpdate(
+      bookingData.doctor._id || bookingData.doctor,
+      { $pull: { availableSlots: bookingData.time } },
+      options
+    );
     
     if (session) {
       await session.commitTransaction();
@@ -85,9 +93,36 @@ async function getBookedSlots(doctorId, date) {
   return bookings.map(b => b.time);
 }
 
+// Cancel booking helper – pushes slot back to doctor's availability in the same transaction
+async function cancelBooking(bookingId) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const booking = await Booking.findById(bookingId).session(session);
+    if (!booking) throw new Error('Booking not found');
+
+    await Doctor.findByIdAndUpdate(
+      booking.doctor,
+      { $addToSet: { availableSlots: booking.time } },
+      { session }
+    );
+
+    await Booking.findByIdAndDelete(bookingId, { session });
+
+    await session.commitTransaction();
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+}
+
 module.exports = {
   createBooking,
   getBookingsByPhone,
   isSlotBooked,
-  getBookedSlots
+  getBookedSlots,
+  cancelBooking
 };

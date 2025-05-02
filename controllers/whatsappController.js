@@ -118,6 +118,12 @@ exports.handleIncoming = async (req, res) => {
         break;
 
       case "get_reason":
+        // Validate reason length (at least 5 characters)
+        if (rawMsg.length < 5) {
+          twiml.message("❌ The reason must be at least 5 characters long. Please provide a more detailed reason for your appointment:");
+          break; // Keep the user in the same step
+        }
+
         await upsertSession(phone, {
           step: "get_name",
           reason: rawMsg
