@@ -1,5 +1,5 @@
 const Doctor = require("../models/Doctor");
-const Booking = require("../models/Booking");
+const { getBookedSlots } = require("./bookingService");
 
 async function getAllDoctors() {
   return await Doctor.find().lean();
@@ -10,32 +10,22 @@ async function getDoctorById(doctorId) {
 }
 
 async function getDoctorsByDate(date) {
-  // Get all bookings for the requested date
-  const bookings = await Booking.find({ date }).lean();
-  
-  // Create map of booked slots per doctor
-  const bookedSlotsMap = bookings.reduce((acc, booking) => {
-    const doctorId = booking.doctor.toString();
-    if (!acc[doctorId]) acc[doctorId] = new Set();
-    acc[doctorId].add(booking.time);
-    return acc;
-  }, {});
-
-  // Get all doctors with their availability
   const doctors = await Doctor.find().lean();
   
-  // Calculate available slots for each doctor
-  return doctors.map(doctor => {
-    const doctorId = doctor._id.toString();
-    const bookedSlots = bookedSlotsMap[doctorId] || new Set();
+  // Get available slots for each doctor
+  const doctorsWithAvailability = await Promise.all(doctors.map(async doctor => {
+    const bookedSlots = await getBookedSlots(doctor._id, date);
+    const availableSlots = doctor.availableSlots.filter(
+      slot => !bookedSlots.includes(slot)
+    );
     
     return {
       ...doctor,
-      availableSlots: doctor.availableSlots.filter(
-        slot => !bookedSlots.has(slot)
-      )
+      availableSlots
     };
-  }).filter(doctor => doctor.availableSlots.length > 0); // Only show doctors with availability
+  }));
+  
+  return doctorsWithAvailability.filter(doctor => doctor.availableSlots.length > 0);
 }
 
 module.exports = {
