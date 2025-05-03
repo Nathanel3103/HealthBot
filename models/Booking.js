@@ -19,7 +19,7 @@ const bookingSchema = new mongoose.Schema({
   },
   date: String, // formatted as "YYYY-MM-DD"
   time: String, // formatted as "HH:mm"
-  source: { type: String, enum: ["Web", "WhatsApp"], required: true, default: "WhatsApp" },  // <-- easy identification in databse
+  source: { type: String, enum: ["Web", "WhatsApp"], required: true, default: "WhatsApp" },  
 
   createdAt: {
     type: Date,
@@ -27,11 +27,10 @@ const bookingSchema = new mongoose.Schema({
   },
 });
 
-
-
+// Improved unique index for better double-booking prevention
 bookingSchema.index(
-  { date: 1, time: 1, service: 1 },
-  { unique: true, name: 'booking_slot_unique' }
+  { 'doctor._id': 1, date: 1, time: 1 },
+  { unique: true, name: 'booking_doctor_slot_unique' }
 );
 
 module.exports = mongoose.model("Booking", bookingSchema);

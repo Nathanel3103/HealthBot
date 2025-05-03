@@ -1,6 +1,6 @@
 const Booking = require("../models/Booking");
 const Doctor = require("../models/Doctor");
-const mongoose = require('mongoose'); // mongoose is required for transactions
+const mongoose = require('mongoose');
 const { isValidPhoneNumber, isValidDate } = require("../utils/validators");
 
 async function createBooking(bookingData, { useTransaction = false } = {}) {
@@ -20,7 +20,8 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
   if (!isValidDate(bookingData.date)) {
     throw new Error('Invalid date format (YYYY-MM-DD required)');
   }
-//validate reason
+
+  // Validate reason
   if (bookingData.reason) {
     if (bookingData.reason.length > 500) {
       throw new Error('Reason must be less than 500 characters');
@@ -30,25 +31,22 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
     }
   }
 
+  // Double-booking check
+  if (await isSlotBooked(bookingData.doctor._id || bookingData.doctor, bookingData.date, bookingData.time)) {
+    throw new Error('This time slot is already booked');
+  }
+
   const session = useTransaction ? await mongoose.startSession() : null;
   if (session) session.startTransaction();
 
   try {
-    // Create and save booking
     const booking = new Booking({
       ...bookingData,
-      reason: bookingData.reason || "Not specified" // Default value
+      reason: bookingData.reason || "Not specified"
     });
     
     const options = session ? { session } : {};
     const savedBooking = await booking.save(options);
-
-    // Atomically pull the booked slot from the doctor's availability
-    await Doctor.findByIdAndUpdate(
-      bookingData.doctor._id || bookingData.doctor,
-      { $pull: { availableSlots: bookingData.time } },
-      options
-    );
     
     if (session) {
       await session.commitTransaction();
@@ -62,10 +60,10 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
       session.endSession();
     }
     
-    if (error.code === 11000) { // Duplicate key error
+    if (error.code === 11000) {
       throw new Error('This time slot is already booked');
     }
-    throw error; // Re-throw other errors
+    throw error;
   }
 }
 
@@ -83,7 +81,6 @@ async function isSlotBooked(doctorId, date, time) {
   });
 }
 
-// Helper for timeslot service
 async function getBookedSlots(doctorId, date) {
   const bookings = await Booking.find(
     { doctor: doctorId, date },
@@ -93,7 +90,6 @@ async function getBookedSlots(doctorId, date) {
   return bookings.map(b => b.time);
 }
 
-// Cancel booking helper – pushes slot back to doctor's availability in the same transaction
 async function cancelBooking(bookingId) {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -102,14 +98,7 @@ async function cancelBooking(bookingId) {
     const booking = await Booking.findById(bookingId).session(session);
     if (!booking) throw new Error('Booking not found');
 
-    await Doctor.findByIdAndUpdate(
-      booking.doctor,
-      { $addToSet: { availableSlots: booking.time } },
-      { session }
-    );
-
     await Booking.findByIdAndDelete(bookingId, { session });
-
     await session.commitTransaction();
   } catch (err) {
     await session.abortTransaction();
