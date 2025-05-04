@@ -149,28 +149,33 @@ exports.handleIncoming = async (req, res) => {
 
       case "confirm_booking":
         if (msg === '1') {
-          await createBooking({
-            phoneNumber: phone,
-            patientName: session.patientName,
-            reason: session.reason,
-            doctor: {
-              _id: session.doctorId,
-              name: session.doctorName,
-              specialization: session.doctorSpecialization
-            },
-            date: session.date,
-            time: session.selectedSlot
-          }, { useTransaction: true }); // Enable transaction for critical operations
-          
-          await clearSession(phone);
-          twiml.message(`✅ Booking confirmed!\n
-            📍 Clinic Address: 123 Ganges Street Belvedere
-            📅 Date: ${session.date}
-            ⏰ Slot: ${session.selectedSlot}
-            👨⚕️ Doctor: ${session.doctorName}
-            📝 Reason: ${session.reason || 'General Consultation'}
+          try {
+            await createBooking({
+              phoneNumber: phone,
+              patientName: session.patientName,
+              reason: session.reason,
+              doctor: {
+                _id: session.doctorId,
+                name: session.doctorName,
+                specialization: session.doctorSpecialization
+              },
+              date: session.date,
+              time: session.selectedSlot
+            }, { useTransaction: true });
             
-            You'll receive a reminder 1 hour before your appointment.`);
+            await clearSession(phone);
+            twiml.message(`✅ Booking confirmed!\n\n📍 Clinic Address: 123 Ganges Street Belvedere\n📅 Date: ${session.date}\n⏰ Slot: ${session.selectedSlot}\n👨⚕️ Doctor: ${session.doctorName}\n📝 Reason: ${session.reason || 'General Consultation'}\n\nYou'll receive a reminder 1 hour before your appointment.`);
+          } catch (error) {
+            if (error.message.includes('already booked')) {
+              // Return to slot selection with error message
+              await upsertSession(phone, { step: "select_slot" });
+              twiml.message(`⚠️ ${error.message}. Please choose another slot:\n${
+                session.availableSlots.map((s, i) => `${i + 1}. ${s}`).join('\n')
+              }`);
+            } else {
+              throw error;
+            }
+          }
         } else {
           await clearSession(phone);
           twiml.message("❌ Booking canceled. Type START to begin again.");
@@ -189,7 +194,14 @@ exports.handleIncoming = async (req, res) => {
   } catch (error) {
     console.error('Controller Error:', error);
     const errorTwiml = new MessagingResponse();
-    errorTwiml.message("⚠️ We're experiencing technical difficulties. Please try again later.");
+    
+    // Handle specific booking errors
+    if (error.message.includes('already booked')) {
+      errorTwiml.message(`⚠️ ${error.message}. Please type START to begin again.`);
+    } else {
+      errorTwiml.message("⚠️ We're experiencing technical difficulties. Please try again later.");
+    }
+    
     res.type('text/xml').send(errorTwiml.toString());
   }
 };
