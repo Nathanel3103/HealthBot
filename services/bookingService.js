@@ -42,11 +42,28 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
   try {
     const booking = new Booking({
       ...bookingData,
-      reason: bookingData.reason || "Not specified"
+      reason: bookingData.reason || "Not specified",
+      source: "WhatsApp"  // Added source tracking
     });
     
     const options = session ? { session } : {};
     const savedBooking = await booking.save(options);
+
+    // NEW: Update doctor's appointments
+    await Doctor.findByIdAndUpdate(
+      bookingData.doctor._id,
+      { 
+        $addToSet: { 
+          appointmentsBooked: { 
+            bookingId: savedBooking._id,
+            date: bookingData.date,
+            time: bookingData.time,
+            source: "WhatsApp"
+          }
+        }
+      },
+      options
+    );
     
     if (session) {
       await session.commitTransaction();
@@ -98,7 +115,14 @@ async function cancelBooking(bookingId) {
     const booking = await Booking.findById(bookingId).session(session);
     if (!booking) throw new Error('Booking not found');
 
+    // Remove from both collections
     await Booking.findByIdAndDelete(bookingId, { session });
+    await Doctor.findByIdAndUpdate(
+      booking.doctor._id,
+      { $pull: { appointmentsBooked: { bookingId: booking._id } } },
+      { session }
+    );
+
     await session.commitTransaction();
   } catch (err) {
     await session.abortTransaction();
