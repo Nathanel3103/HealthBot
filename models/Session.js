@@ -13,12 +13,14 @@ const sessionSchema = new mongoose.Schema({
     enum: [
       'greeting',
       'select_service',
+      'help',
       'select_date',
       'select_doctor',
       'select_slot',
       'get_reason',
       'get_name',
       'confirm_booking'
+      
     ],
     default: 'greeting'
   },
