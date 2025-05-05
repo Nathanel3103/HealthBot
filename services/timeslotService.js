@@ -1,14 +1,10 @@
 const { getBookedSlots } = require("./bookingService");
 const { getDoctorById } = require("./doctorService");
-
-// Utility to normalize time format
-function normalizeTime(timeStr) {
-  return timeStr.trim().padStart(5, '0');
-}
+const { normalizeTime } = require("../utils/timeUtils"); 
 
 async function getAvailableTimeSlots(doctorId, date) {
   try {
-    const [doctor, bookedSlots] = await Promise.all([
+    const [doctor, rawBookedSlots] = await Promise.all([
       getDoctorById(doctorId),
       getBookedSlots(doctorId, date)
     ]);
@@ -17,17 +13,17 @@ async function getAvailableTimeSlots(doctorId, date) {
       throw new Error('Doctor not found in database');
     }
 
-    console.log('Doctor available slots:', doctor.availableSlots);
-    console.log('Booked slots:', bookedSlots);
-
     const normalizedAvailable = doctor.availableSlots.map(normalizeTime);
-    const normalizedBooked = bookedSlots.map(normalizeTime);
+    const normalizedBooked = rawBookedSlots.map(normalizeTime);
 
     const availableSlots = normalizedAvailable.filter(
-      slot => !bookedSlots.includes(slot)
+      slot => !normalizedBooked.includes(slot)
     );
 
+    console.log('Doctor available slots:', doctor.availableSlots);
+    console.log('Booked slots:', rawBookedSlots);
     console.log('Filtered available slots:', availableSlots);
+
     return availableSlots;
   } catch (error) {
     console.error('Timeslot error:', error);
