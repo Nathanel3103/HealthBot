@@ -3,16 +3,19 @@ const Doctor = require("../models/Doctor");
 const mongoose = require('mongoose');
 const { isValidPhoneNumber, isValidDate } = require("../utils/validators");
 
+// Utility to normalize time format
+function normalizeTime(timeStr) {
+  return timeStr.trim().padStart(5, '0');
+}
+
 async function createBooking(bookingData, { useTransaction = false } = {}) {
-  // Validate required fields
   const requiredFields = ['patientName', 'phoneNumber', 'doctor', 'date', 'time'];
   const missingFields = requiredFields.filter(field => !bookingData[field]);
-  
+
   if (missingFields.length > 0) {
     throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
 
-  // Validate field formats
   if (!isValidPhoneNumber(bookingData.phoneNumber)) {
     throw new Error('Invalid phone number format');
   }
@@ -21,7 +24,6 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
     throw new Error('Invalid date format (YYYY-MM-DD required)');
   }
 
-  // Validate reason
   if (bookingData.reason) {
     if (bookingData.reason.length > 500) {
       throw new Error('Reason must be less than 500 characters');
@@ -31,8 +33,10 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
     }
   }
 
-  // Double-booking check
-  if (await isSlotBooked(bookingData.doctor._id || bookingData.doctor, bookingData.date, bookingData.time)) {
+  // Normalize time before checking
+  const normalizedTime = normalizeTime(bookingData.time);
+
+  if (await isSlotBooked(bookingData.doctor._id || bookingData.doctor, bookingData.date, normalizedTime)) {
     throw new Error('This time slot is already booked');
   }
 
@@ -42,41 +46,41 @@ async function createBooking(bookingData, { useTransaction = false } = {}) {
   try {
     const booking = new Booking({
       ...bookingData,
+      time: normalizedTime,
       reason: bookingData.reason || "Not specified",
-      source: "WhatsApp"  // Added source tracking
+      source: "WhatsApp"
     });
-    
+
     const options = session ? { session } : {};
     const savedBooking = await booking.save(options);
 
-    // NEW: Update doctor's appointments
     await Doctor.findByIdAndUpdate(
-      bookingData.doctor._id,
-      { 
-        $addToSet: { 
-          appointmentsBooked: { 
+      bookingData.doctor._id || bookingData.doctor,
+      {
+        $addToSet: {
+          appointmentsBooked: {
             bookingId: savedBooking._id,
             date: bookingData.date,
-            time: bookingData.time,
+            time: normalizedTime,
             source: "WhatsApp"
           }
         }
       },
       options
     );
-    
+
     if (session) {
       await session.commitTransaction();
       session.endSession();
     }
-    
+
     return savedBooking;
   } catch (error) {
     if (session) {
       await session.abortTransaction();
       session.endSession();
     }
-    
+
     if (error.code === 11000) {
       throw new Error('This time slot is already booked');
     }
@@ -94,17 +98,18 @@ async function isSlotBooked(doctorId, date, time) {
   return await Booking.exists({
     doctor: doctorId,
     date,
-    time
+    time: normalizeTime(time)
   });
 }
 
 async function getBookedSlots(doctorId, date) {
-  const bookings = await Booking.find(
-    { doctor: doctorId, date },
-    { time: 1, _id: 0 }
-  ).lean();
-  
-  return bookings.map(b => b.time);
+  try {
+    const bookings = await Booking.find({ doctor: doctorId, date }, { time: 1, _id: 0 }).lean();
+    return bookings.map(b => normalizeTime(b.time));
+  } catch (error) {
+    console.error('Error fetching booked slots:', error);
+    throw new Error('Failed to retrieve booked slots');
+  }
 }
 
 async function cancelBooking(bookingId) {
@@ -115,10 +120,9 @@ async function cancelBooking(bookingId) {
     const booking = await Booking.findById(bookingId).session(session);
     if (!booking) throw new Error('Booking not found');
 
-    // Remove from both collections
     await Booking.findByIdAndDelete(bookingId, { session });
     await Doctor.findByIdAndUpdate(
-      booking.doctor._id,
+      booking.doctor,
       { $pull: { appointmentsBooked: { bookingId: booking._id } } },
       { session }
     );
