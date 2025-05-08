@@ -199,10 +199,10 @@ Reply:
 📍 Clinic Address: 123 Ganges Street Belvedere
 📅 Date: ${session.date}
 ⏰ Slot: ${session.selectedSlot}
-👨Doctor: ${session.doctorName} ${session.doctorSpecialization}
+👨Doctor: ${session.doctorName} 
 📝 Reason: ${session.reason || 'General Consultation'}
 
-You'll receive a reminder 1 hour before your appointment.`);
+You'll receive a reminder 1 day before your appointment.`);
           } catch (error) {
             if (error.message.includes('already booked')) {
               await upsertSession(phone, { step: "select_slot" });
